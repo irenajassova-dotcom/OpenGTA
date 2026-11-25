@@ -41,3 +41,16 @@ Two ways to play
        hud.setTitle(s) setObjective(s) pager(s [,secs]) clear()
    The HUD lines are drawn by viewer.cpp. Because the GTA1 maps are not
    Senec, the waypoints are block offsets from the player's start position.
+
+Bonus mission: NOCNA ZBIERKA (night)
+------------------------------------
+David has the biggest vinyl collection in Slovakia. For weeks a fence called
+"Cierny" (black jacket, always after midnight, cash only) has been selling him
+rare records cheap. In the studio David finds a dedication written inside a
+Collegium Musicum sleeve, and the radio reports burglaries of pensioners'
+flats. The records were stolen. Before morning you return them, on foot and
+quietly, to the Majers, Mr. Kovac and Mrs. Hudecova. Then you meet Cierny at
+the garages and chase his black BMW (3 rams). Mrs. Majerova gives the
+Konvergencie LP to David to keep.
+Start it from the title screen ("NOCNA ZBIERKA") or call the booth after the
+main story.

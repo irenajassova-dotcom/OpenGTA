@@ -93,7 +93,10 @@
         <kbd>P / Esc</kbd><span>pauza</span>
       </div>
       <p>Misie začínajú pri <b style="color:var(--acc)">telefónnej búdke</b> (žltá ikona na mape). Žltá šípka ukazuje cieľ.</p>
-      <button class="btn" id="startBtn">HRAŤ</button>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn" id="startBtn">HRAŤ</button>
+        <button class="btn" id="nightBtn" style="background:#1d2340;color:#f2c230">NOČNÁ ZBIERKA</button>
+      </div>
       <p class="fine" style="margin-top:14px">Fanúšikovská pocta pre OpenGTA. Udalosti misií sú vymyslené, nie je to oficiálne dielo ani spolupráca s uvedenými umelcami.</p>
     </div>
   </div>
@@ -255,8 +258,9 @@ const LOC = {
   bufet:{...snap(61,40), name:'Bufet pri jazerách'}, garaze:{...snap(25,43), name:'Garáže'},
   podchod:{...snap(24,6), name:'Podchod'}, molo:{...snap(68,51), name:'Mólo'},
   lisovna:{...snap(75,15), name:'Lisovňa'}, podium:{...snap(64,59), name:'Pódium'},
+  majerovci:{...snap(30,48), name:'Majerovci'}, kovac:{...snap(52,31), name:'Pán Kováč'}, hudecova:{...snap(17,20), name:'Pani Hudecová'},
 };
-const BOOTHS = [snap(14,34), snap(34,25), snap(47,9), snap(20,37), snap(58,40)];
+const BOOTHS = [snap(14,34), snap(34,25), snap(47,9), snap(20,37), snap(58,40), snap(16,33)];
 
 // ---------------------------------------------------------------- audio
 let AC=null, master=null, noiseBuf=null;
@@ -431,13 +435,53 @@ const MISSIONS = [
         lyrics:['Celá scéna tu, jazerá horia svetlom,','Zvuk ulice znie z každého okna v meste,','čo začalo v pivnici, počuje celý kraj,','Senec, zdvihni ruky — toto je náš štart!','[dav kričí]']},
     ],
     outro:[[DAVID,'Toto je Zvuk ulice. Odtiaľto to všetko začalo.']] },
+  { title:'BONUS · NOČNÁ ZBIERKA', reward:3000, night:true,
+    intro:[[DAVID,'Ešte nespíš? Poď do pivnice. Musíš vidieť, čo som zohnal.'],
+           [DAVID,'Vieš, že mám najväčšiu zbierku vinylov na Slovensku. Funk, soul, jazz, staré Opusy… Z toho všetkého robím beaty.'],
+           [DAVID,'Posledné týždne mi jeden chlapík nosí platne. Hovoria mu Čierny, vždy príde v čiernej bunde, vždy po polnoci. Predáva lacno, pýta len hotovosť.'],
+           [DAVID,'Dnes priniesol Collegium Musicum, Konvergencie, prvé vydanie z roku 1971. Poď sa pozrieť.']],
+    steps:[
+      {type:'goto', loc:'studio', foot:true, text:'Príď do pivničného štúdia (pešo)',
+        done(){ dialog([
+          [DAVID,'Pozri. Vo vnútri obalu je ceruzkou napísané: „Ján a Mária Majerovci, na pamiatku svadby, 1972."'],
+          ['RÁDIO','…senecká polícia varuje dôchodcov. Neznámy páchateľ v noci vykráda byty starších ľudí, berie hlavne gramoplatne a šperky…'],
+          [DAVID,'…'],
+          [DAVID,'Väčšinu platní od Čierneho má niekto podpísanú. Majerovci, Kováč, Hudecová. Kupoval som kradnuté. Od starých ľudí.'],
+          [YOU,'Nemohol si to vedieť.'],
+          [DAVID,'Teraz to už viem. Ešte dnes v noci to vrátime, každú platňu tam, odkiaľ ju zobral. Kým sa ľudia nezobudia.'],
+          [DAVID,'A Čiernemu som zavolal, že chcem kúpiť ďalšie. Stretneme sa pri garážach. Ty ho zastavíš, ja volám policajtov.']]); }},
+      {type:'hold', loc:'majerovci', secs:2, foot:true, timer:240, text:'Polož platne pred dvere Majerovcov (pešo, potichu)', done(){ pager('VRÁTENÉ 1/3 · COLLEGIUM MUSICUM, MODUS'); }},
+      {type:'hold', loc:'kovac', secs:2, foot:true, text:'Vráť jazzové platne pánovi Kováčovi', done(){ pager('VRÁTENÉ 2/3 · GUSTAV BROM, LADISLAV GERHARDT'); }},
+      {type:'hold', loc:'hudecova', secs:2, foot:true, text:'Vráť šlágre pani Hudecovej', done(){ pager('VRÁTENÉ 3/3 · VŠETKO JE DOMA'); }},
+      {type:'goto', loc:'garaze', foot:true, text:'Stretnutie s Čiernym pri garážach',
+        done(){ dialog([['ČIERNY','Kde je Dávid? Mám preňho celú tašku. Babky spia tvrdo.'],
+                        [YOU,'Dávid vie, odkiaľ tie platne sú. Všetky sú už späť.'],
+                        ['ČIERNY','Ty hajzel…! Ani ma nehľadaj!'],
+                        ['PAGER','ČIERNY UTEKÁ V ČIERNOM BMW. ZOBER AUTO A ZASTAV HO — DÁVID']]); }},
+      {type:'chase', rams:3, text:'Zastav Čierneho: vraz do jeho BMW'},
+      {type:'goto', loc:'studio', text:'Vráť sa k Dávidovi do štúdia'},
+    ],
+    outro:[[DAVID,'Policajti ho zobrali priamo pri aute. Na zadnom sedadle mal ďalšiu tašku platní.'],
+           [DAVID,'Ráno prišla pani Majerová. Priniesla bábovku. Vraj či som to ja, kto jej v noci vrátil platne.'],
+           ['PANI MAJEROVÁ','Konvergencie chcem, aby ste mali vy, pán Dávid. Môj Ján by bol rád, keby to hralo ďalej. Hoci v tom vašom rape.'],
+           [DAVID,'Toto bude najcennejšia platňa v mojej zbierke. Nie pre to, koľko stojí. Pre to, ako som ju dostal.'],
+           [DAVID,'Niekedy v sobotu vám zahrám, čo som z nej urobil. Sľubujem.']] },
 ];
 const state = { mode:'intro', mission:-1, next:0, step:0, timer:null, hold:0, passenger:false, rhythm:null, done:false };
 
 function curStep(){ return state.mission>=0 ? MISSIONS[state.mission].steps[state.step] : null; }
 function target(){
   if (state.mission<0) return state.next<MISSIONS.length ? BOOTHS[state.next] : null;
-  const s=curStep(); return s && s.loc ? LOC[s.loc] : null;
+  const s=curStep();
+  if (s && s.type==='chase') return state.thief;
+  return s && s.loc ? LOC[s.loc] : null;
+}
+function spawnThief(){
+  let best=null, bd=1e9;
+  for (const c of cars){ if (!c.ai||c.cop||c===player.car) continue; const d=Math.hypot(c.x-LOC.garaze.x,c.y-LOC.garaze.y); if (d<bd){bd=d;best=c;} }
+  if (!best){ spawnTraffic(); best=cars[cars.length-1]; }
+  best.model={name:'Čierne BMW',col:'#151515'}; best.thief=true; best.cruise=215; best.driver=true; best.stun=0;
+  state.thief=best; state.rams=0; state.lostT=0;
 }
 function startMission(i){
   state.mission=i; state.step=0; state.timer=null; state.hold=0; state.passenger=false;
@@ -447,6 +491,7 @@ function startMission(i){
 function beginStep(){ const s=curStep(); if(!s) return; state.hold=0;
   if (s.timer) state.timer=s.timer; if (s.passenger) state.passenger=true;
   if (s.type==='rhythm') startRhythm(s);
+  if (s.type==='chase') spawnThief();
   updateObjective(); }
 function advance(){
   const s=curStep(); if (s.done) s.done();
@@ -461,15 +506,18 @@ function completeMission(){
   state.timer=null; state.passenger=false; setWanted(0);
   dialog(m.outro, ()=>{
     player.cash+=m.reward; pager('MISIA SPLNENÁ · RESPEKT +'+m.reward+' Sk', 6);
+    const finished=state.mission;
     state.next=state.mission+1; state.mission=-1; $('mtitle').textContent='';
-    if (state.next>=MISSIONS.length){ state.done=true; $('ending').style.display='flex'; state.mode='ending'; beat.stop(); }
-    else setTimeout(()=>pager('ZAVOLAJ Z TELEFÓNNEJ BÚDKY — ĎALŠIA AKCIA ČAKÁ',6), 3000);
+    if (finished===4){ state.done=true; $('ending').style.display='flex'; state.mode='ending'; beat.stop(); }
+    else if (state.next>=MISSIONS.length) setTimeout(()=>pager('VŠETKY MISIE SPLNENÉ · SENEC JE TVOJ',6), 3000);
+    else setTimeout(()=>pager(MISSIONS[state.next].night?'NOC NAD SENCOM. DÁVID VOLÁ Z BÚDKY — NIEČO NIE JE V PORIADKU':'ZAVOLAJ Z TELEFÓNNEJ BÚDKY — ĎALŠIA AKCIA ČAKÁ',6), 3000);
     updateObjective();
   });
 }
 function failMission(reason){
   if (state.mission<0) return;
   pager('MISIA ZLYHALA: '+reason, 6); blip(110,.5,.2);
+  if (state.thief){ state.thief.thief=false; state.thief=null; }
   state.next=state.mission; state.mission=-1; state.timer=null; state.passenger=false; state.rhythm=null;
   $('mtitle').textContent=''; updateObjective();
 }
@@ -526,7 +574,9 @@ function carCollisions(){
     const a=cars[i], b=cars[j], dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy);
     if (d<22 && d>0.01){ const p=(22-d)/2, ux=dx/d, uy=dy/d;
       moveCircle(a,a.x-ux*p,a.y-uy*p,9); moveCircle(b,b.x+ux*p,b.y+uy*p,9);
-      if (a===player.car||b===player.car){ const o=a===player.car?b:a; o.stun=1.5; player.car.speed*=0.6; } }
+      if (a===player.car||b===player.car){ const o=a===player.car?b:a;
+        if (o.thief && o.stun<=0 && Math.abs(player.car.speed)>60){ state.rams++; blip(70,.2,.25); pager('NÁRAZ '+state.rams+'/3 · ČIERNY SPOMALUJE',3); }
+        o.stun=1.5; player.car.speed*=0.6; } }
   }
 }
 function aiCar(c, dt){
@@ -676,7 +726,7 @@ function update(dt){
   }
 
   // population
-  for (let i=cars.length-1;i>=0;i--){ const c=cars[i]; if (c===player.car||c.mine||c.cop) continue;
+  for (let i=cars.length-1;i>=0;i--){ const c=cars[i]; if (c===player.car||c.mine||c.cop||c.thief) continue;
     if (Math.hypot(c.x-player.x,c.y-player.y)>40*T) cars.splice(i,1); }
   for (let i=peds.length-1;i>=0;i--) if (Math.hypot(peds[i].x-player.x,peds[i].y-player.y)>34*T) peds.splice(i,1);
   if (cars.filter(c=>c.ai).length<24) spawnTraffic();
@@ -699,6 +749,13 @@ function update(dt){
           else advance();
         } else state.hold=Math.max(0,state.hold-dt);
       } else if (s.type==='lose'){ if (player.wanted===0) advance(); }
+      else if (s.type==='chase' && state.thief){
+        const th=state.thief, d=Math.hypot(th.x-player.x,th.y-player.y);
+        if (state.rams>=s.rams){ th.ai=false; th.speed=0; th.thief=false; state.thief=null;
+          pager('ČIERNY ZASTAVIL. DÁVID PRIVOLAL POLÍCIU.',5); advance(); }
+        else if (d>28*T){ state.lostT+=dt; if (state.lostT>5) failMission('Čierny ušiel'); }
+        else state.lostT=0;
+      }
     }
   }
   if (state.mission>=0 && took('pause')===false) {}
@@ -716,6 +773,7 @@ function update(dt){
     if (s.car && !player.car) t+=' · potrebuješ auto';
     if (s.type==='hold' && state.hold>0) t+=' · '+Math.min(100,Math.floor(state.hold/s.secs*100))+'%';
     if (state.passenger) t+=' · Pa3k sedí vedľa';
+    if (s.type==='chase'){ t+=' · nárazy '+state.rams+'/'+s.rams; if (!player.car) t+=' · zober auto (E)'; if (state.lostT>0) t+=' · STRÁCAŠ HO!'; }
     $('mobj').textContent=t;
   }
   updateRadio();
@@ -856,7 +914,21 @@ function render(){
 
   // night-ish tint for the final mission
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  if (state.mission===4 || state.done){ ctx.fillStyle='rgba(20,10,60,.28)'; ctx.fillRect(0,0,vw,vh); }
+  const night = (state.mission>=0 && MISSIONS[state.mission].night) || (state.mission<0 && MISSIONS[state.next] && MISSIONS[state.next].night);
+  if (night){
+    const px=vw/2+(player.x-camX)*zoom, py=vh/2+(player.y-camY)*zoom, r=Math.max(vw,vh)*.55;
+    const g=ctx.createRadialGradient(px,py,40*zoom,px,py,r);
+    g.addColorStop(0,'rgba(6,8,28,.25)'); g.addColorStop(1,'rgba(4,5,20,.82)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,vw,vh);
+    const glow=(wx,wy,rad,col)=>{ const sx=vw/2+(wx-camX)*zoom, sy=vh/2+(wy-camY)*zoom; if (sx<-200||sy<-200||sx>vw+200||sy>vh+200) return;
+      const lg=ctx.createRadialGradient(sx,sy,0,sx,sy,rad*zoom); lg.addColorStop(0,col); lg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=lg; ctx.fillRect(sx-rad*zoom,sy-rad*zoom,rad*2*zoom,rad*2*zoom); };
+    ctx.globalCompositeOperation='lighter';
+    for (const c of cars){ glow(c.x+Math.cos(c.angle)*40,c.y+Math.sin(c.angle)*40,46,'rgba(255,230,160,.22)');
+      if (c.cop) glow(c.x,c.y,50,(performance.now()/180|0)%2?'rgba(60,110,255,.35)':'rgba(255,50,50,.35)'); }
+    if (tgt) glow(tgt.x,tgt.y,60,'rgba(242,194,48,.3)');
+    ctx.globalCompositeOperation='source-over';
+  } else if (state.mission===4 || state.done){ ctx.fillStyle='rgba(20,10,60,.28)'; ctx.fillRect(0,0,vw,vh); }
   if (state.rhythm) drawRhythm();
 
   // minimap
@@ -900,13 +972,16 @@ function frame(now){
   render();
   requestAnimationFrame(frame);
 }
-$('startBtn').addEventListener('click', ()=>{
+function startGame(night){
   initAudio(); if (AC && AC.state==='suspended') AC.resume();
   $('intro').style.display='none'; state.mode='play';
   for (let i=0;i<20;i++) spawnTraffic(); for (let i=0;i<30;i++) spawnPed();
+  if (night){ state.next=MISSIONS.length-1; state.done=true; }
   updateObjective();
-  pager('VITAJ V SENCI, 1998. DÁVID ŤA ČAKÁ PRI TELEFÓNNEJ BÚDKE.', 7);
-});
+  pager(night?'SENEC, NOC, 1998. DÁVID VOLÁ Z BÚDKY PRI ŠTÚDIU.':'VITAJ V SENCI, 1998. DÁVID ŤA ČAKÁ PRI TELEFÓNNEJ BÚDKE.', 7);
+}
+$('startBtn').addEventListener('click', ()=>startGame(false));
+$('nightBtn').addEventListener('click', ()=>startGame(true));
 $('freeBtn').addEventListener('click', ()=>{ $('ending').style.display='none'; state.mode='play'; updateObjective(); });
 cv.addEventListener('pointerdown', ()=>{ if (state.rhythm) rhythmPress(); });
 requestAnimationFrame(frame);
