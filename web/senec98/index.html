@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Senec '98 — Zvuk ulice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0e0e10; --ink:#ece6d6; --acc:#f2c230; --red:#d6452f; --lcd:#9fc25a; --lcdbg:#1d2612; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:'Space Mono',monospace; overflow:hidden; touch-action:none; user-select:none; -webkit-user-select:none; }
+  #wrap { position:relative; width:100%; height:100vh; min-height:420px; }
+  canvas#game { position:absolute; inset:0; width:100%; height:100%; display:block; image-rendering:pixelated; }
+  .hud { position:absolute; pointer-events:none; text-shadow:0 2px 0 #000, 0 0 6px #000; }
+  #tl { top:10px; left:12px; max-width:60%; }
+  #area { font-family:'Anton',sans-serif; font-size:22px; letter-spacing:1px; color:var(--acc); text-transform:uppercase; }
+  #mtitle { font-family:'Anton',sans-serif; font-size:16px; margin-top:4px; color:var(--ink); }
+  #mobj { font-size:13px; margin-top:2px; line-height:1.35; }
+  #mtimer { font-family:'Anton',sans-serif; font-size:20px; color:var(--red); margin-top:2px; }
+  #tr { top:10px; right:12px; text-align:right; }
+  #cash { font-family:'Anton',sans-serif; font-size:26px; color:#8fe36a; }
+  #wanted { font-family:'Segoe UI Symbol','DejaVu Sans',system-ui,sans-serif; font-size:20px; letter-spacing:2px; color:#555; }
+  #wanted .on { color:var(--red); }
+  #radio { font-size:11px; margin-top:4px; color:var(--acc); }
+  #pager { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); width:min(440px,92%); background:var(--lcdbg); border:3px solid #444; border-radius:10px; padding:8px 12px; color:var(--lcd); font-size:13px; box-shadow:0 4px 0 #000; display:none; pointer-events:none; }
+  #pager b { color:#d9f59a; font-weight:700; }
+  #minimap { position:absolute; left:12px; bottom:12px; border:2px solid #000; box-shadow:0 0 0 2px #333; pointer-events:none; }
+  .screen { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(8,8,10,.86); z-index:20; padding:16px; }
+  .card { width:min(640px,100%); max-height:100%; overflow:auto; background:#17171a; border:2px solid #2c2c30; padding:22px 24px; box-shadow:8px 8px 0 #000; }
+  .card h1 { font-family:'Anton',sans-serif; font-weight:400; margin:0; font-size:clamp(34px,7vw,58px); line-height:1; color:var(--acc); letter-spacing:1px; }
+  .card h2 { font-family:'Anton',sans-serif; font-weight:400; margin:4px 0 14px; font-size:20px; color:var(--ink); letter-spacing:2px; }
+  .card p { font-size:13px; line-height:1.55; margin:0 0 10px; color:#cfc9b8; }
+  .card .keys { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:12px; margin:12px 0 16px; }
+  .card .keys kbd { color:var(--acc); font-family:inherit; font-weight:700; }
+  .btn { pointer-events:auto; font-family:'Anton',sans-serif; font-size:20px; letter-spacing:2px; background:var(--acc); color:#111; border:0; padding:10px 22px; cursor:pointer; box-shadow:4px 4px 0 #000; }
+  .btn:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+  .fine { font-size:11px !important; color:#8d8878 !important; }
+  #dialog { position:absolute; left:50%; bottom:20px; transform:translateX(-50%); width:min(620px,94%); background:#141416; border:2px solid var(--acc); padding:14px 18px; z-index:15; display:none; box-shadow:6px 6px 0 #000; cursor:pointer; }
+  #dname { font-family:'Anton',sans-serif; color:var(--acc); font-size:18px; letter-spacing:1px; }
+  #dtext { font-size:14px; line-height:1.5; margin-top:4px; }
+  #dhint { font-size:10px; color:#8d8878; margin-top:8px; text-align:right; }
+  #touch { position:absolute; inset:auto 0 0 0; height:0; display:none; z-index:12; }
+  #touch .pad { position:absolute; bottom:18px; width:52px; height:52px; border-radius:50%; background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.3); color:#fff; font:700 14px 'Space Mono',monospace; display:flex; align-items:center; justify-content:center; }
+  @media (pointer:coarse) { #touch { display:block; } #minimap { bottom:auto; top:120px; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" aria-label="Herná plocha Senec '98"></canvas>
+
+  <div class="hud" id="tl">
+    <div id="area">Senec</div>
+    <div id="mtitle"></div>
+    <div id="mobj"></div>
+    <div id="mtimer"></div>
+  </div>
+  <div class="hud" id="tr">
+    <div id="cash">Sk 200</div>
+    <div id="wanted" aria-label="Hľadanosť"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+    <div id="radio"></div>
+  </div>
+  <canvas id="minimap" width="192" height="144" aria-hidden="true"></canvas>
+  <div id="pager" role="status" aria-live="polite"></div>
+
+  <div id="dialog" role="dialog" aria-live="polite">
+    <div id="dname"></div>
+    <div id="dtext"></div>
+    <div id="dhint">ENTER / klik — ďalej</div>
+  </div>
+
+  <div id="touch" aria-hidden="true">
+    <div class="pad" data-k="left" style="left:14px;bottom:70px">◀</div>
+    <div class="pad" data-k="right" style="left:126px;bottom:70px">▶</div>
+    <div class="pad" data-k="up" style="left:70px;bottom:126px">▲</div>
+    <div class="pad" data-k="down" style="left:70px;bottom:14px">▼</div>
+    <div class="pad" data-k="enter" style="right:84px;bottom:40px">AUTO</div>
+    <div class="pad" data-k="space" style="right:18px;bottom:90px;width:60px;height:60px">BEAT</div>
+  </div>
+
+  <div class="screen" id="intro">
+    <div class="card">
+      <h1>SENEC '98</h1>
+      <h2>ZVUK ULICE</h2>
+      <p>Senec, malé mesto pri Bratislave. Slnečné jazerá, Turecký dom na Námestí 1. mája, paneláky, vlaky na Galantu. A v pivnici na sídlisku sa rodí niečo nové: <b>rap po slovensky</b>.</p>
+      <p>Si <b>Mladý</b>, chalan zo sídliska s kazetou v ruke. Dávid zo Senca, praotec slovenského hip hopu, chystá kompiláciu <b>Zvuk ulice</b> a hľadá nové hlasy. Na stanicu má prísť MC z Piešťan, ktorý si hovorí <b>Pa3k Metamorfolord</b>.</p>
+      <div class="keys">
+        <kbd>WASD / šípky</kbd><span>chôdza / jazda</span>
+        <kbd>E / Enter</kbd><span>nastúpiť / vystúpiť z auta, ďalej v dialógu</span>
+        <kbd>Medzerník</kbd><span>ručná brzda, úder do beatu pri nahrávaní</span>
+        <kbd>R</kbd><span>rádio v aute zap/vyp</span>
+        <kbd>P / Esc</kbd><span>pauza</span>
+      </div>
+      <p>Misie začínajú pri <b style="color:var(--acc)">telefónnej búdke</b> (žltá ikona na mape). Žltá šípka ukazuje cieľ.</p>
+      <button class="btn" id="startBtn">HRAŤ</button>
+      <p class="fine" style="margin-top:14px">Fanúšikovská pocta pre OpenGTA. Udalosti misií sú vymyslené, nie je to oficiálne dielo ani spolupráca s uvedenými umelcami.</p>
+    </div>
+  </div>
+  <div class="screen" id="pause" style="display:none">
+    <div class="card" style="text-align:center"><h1>PAUZA</h1><p style="margin-top:12px">P / Esc — pokračovať</p></div>
+  </div>
+  <div class="screen" id="ending" style="display:none">
+    <div class="card">
+      <h1>RESPEKT, SENEC</h1>
+      <h2>KOMPILÁCIA VYŠLA</h2>
+      <p>Dávid zo Senca rapoval po slovensky od roku 1989. Skladba <b>Politik</b> (Geto Gang, 1993) patrí medzi prvé slovenské rapové nahrávky a projekt <b>Zvuk ulice</b> v 90. rokoch spojil mladých raperov z celého Slovenska.</p>
+      <p>Na Zvuku ulice sa prvýkrát objavil aj <b>Pa3k Metamorfolord</b>. Neskôr sa preslávil ako <b>Rytmus</b> a v roku 2001 založil s Egom a DJ Anysom skupinu <b>Kontrafakt</b>. Hit Dáva mi a album E.R.A. v rokoch 2003–2004 dostali slovenský rap do mainstreamu.</p>
+      <p>Mesto je teraz tvoje. Jazdi ďalej.</p>
+      <button class="btn" id="freeBtn">VOĽNÁ JAZDA</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+// ---------------------------------------------------------------- world
+const T = 32, W = 96, H = 72;
+const G=0, ROAD=1, WALK=2, BLD=3, WATER=4, RAIL=5, PLAZA=6, SAND=7, PARK=8, FIELD=9, PIER=10;
+const tiles = new Uint8Array(W*H), hFlag = new Uint8Array(W*H), vFlag = new Uint8Array(W*H);
+const hRoadOf = new Int16Array(H).fill(-1), vRoadOf = new Int16Array(W).fill(-1);
+const I = (x,y) => y*W+x;
+const inb = (x,y) => x>=0 && y>=0 && x<W && y<H;
+const tileAt = (x,y) => inb(x,y) ? tiles[I(x,y)] : BLD;
+const isSolid = t => t===BLD || t===WATER;
+const solidPx = (px,py) => isSolid(tileAt(Math.floor(px/T), Math.floor(py/T)));
+let seed = 1998;
+const rnd = () => (seed = (seed*1664525 + 1013904223) >>> 0) / 4294967296;
+const pick = a => a[(rnd()*a.length)|0];
+const rpick = a => a[(Math.random()*a.length)|0];
+
+const roadsH = [8, 22, 36, 50, 64, 68];
+const roadsV = [5, 18, 31, 44, 57, 70, 83];
+const buildings = [], trees = [];
+
+function districtAt(x,y){
+  if (x>=59 && y>=38 && y<=63) return 'jazera';
+  if (y<8) return 'stanica';
+  if (y>=66) return 'd1';
+  if (x<5 || x>84) return 'pole';
+  if (x>=33 && x<=43 && y>=24 && y<=35) return 'namestie';
+  if (x>=20 && x<31 && y>=10 && y<22) return 'trh';
+  if (x>=20 && x<31 && y>=38 && y<49) return 'garaze';
+  if (x<31 && y>=22 && y<50) return 'sidlisko';
+  if (x>=57 && y<36) return 'priemysel';
+  return (y>=50 || x<31) ? 'domy' : 'centrum';
+}
+const AREA = { jazera:'Slnečné jazerá', stanica:'Železničná stanica', d1:'Diaľnica D1', pole:'Okraj Senca',
+  namestie:'Námestie 1. mája', trh:'Trhovisko', garaze:'Garáže', sidlisko:'Sídlisko', priemysel:'Priemyselný obvod', domy:'Rodinné domy', centrum:'Centrum' };
+
+function addB(x,y,w,h,hg,col,label){
+  if (w<1||h<1) return null;
+  for (let j=y;j<y+h;j++) for (let i=x;i<x+w;i++) if (inb(i,j)) tiles[I(i,j)] = BLD;
+  const b = {x,y,w,h,hg,col,label}; buildings.push(b); return b;
+}
+const PANEL=['#a7a49b','#b8b3a6','#9c9a92','#c2b9a1'], ROOFS=['#b5643f','#c98f4a','#8c8c84','#7e6250','#a8553a','#6f7d7a'];
+const REDS=['#a8452e','#b8583a','#93402c','#c26a43'], STALL=['#d6452f','#2f6fbf','#e8b730','#3d9a57','#e4e0d2'], IND=['#6d757b','#5f6b74','#7d8186','#4f6a7d'];
+
+function fillBlock(x0,y0,x1,y1){
+  const d = districtAt((x0+x1)>>1, (y0+y1)>>1);
+  const iw = x1-x0+1, ih = y1-y0+1;
+  if (d==='sidlisko'){
+    if (rnd()<0.5) for (let y=y0; y<=y1-1; y+=4) addB(x0,y,iw,Math.min(2,y1-y+1),7+((rnd()*3)|0),pick(PANEL));
+    else for (let x=x0; x<=x1-1; x+=4) addB(x,y0,Math.min(2,x1-x+1),ih,7+((rnd()*3)|0),pick(PANEL));
+  } else if (d==='centrum'){
+    const a=(iw-1)>>1, b=(ih-1)>>1;
+    const lots=[[x0,y0,a,b],[x0+a+1,y0,iw-a-1,b],[x0,y0+b+1,a,ih-b-1],[x0+a+1,y0+b+1,iw-a-1,ih-b-1]];
+    for (const [lx,ly,lw,lh] of lots){ const s=rnd()<0.4?1:0; addB(lx,ly,lw-s,lh,3+((rnd()*2)|0),pick(ROOFS)); }
+  } else if (d==='domy'){
+    for (let y=y0;y<=y1-1;y+=3) for (let x=x0;x<=x1-1;x+=3) if (rnd()<0.85) addB(x,y,2,2,2,pick(REDS));
+  } else if (d==='priemysel'){
+    const a=(ih-1)>>1; addB(x0,y0,iw,a,3,pick(IND)); addB(x0,y0+a+1,iw,ih-a-1,3,pick(IND));
+  } else if (d==='trh'){
+    for (let y=y0;y<=y1;y++) for (let x=x0;x<=x1;x++) tiles[I(x,y)]=PLAZA;
+    for (let y=y0+1;y<=y1-1;y+=3) for (let x=x0+1;x<=x1-1;x+=3) addB(x,y,1,1,1,pick(STALL));
+  } else if (d==='garaze'){
+    for (let y=y0;y<=y1-1;y+=4) for (let x=x0;x<=x1;x+=2) addB(x,y,1,2,1,'#8a8780');
+  }
+}
+
+function generate(){
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+    const d=districtAt(x,y); tiles[I(x,y)] = (d==='pole'||d==='stanica'||d==='d1') ? FIELD : d==='jazera' ? PARK : G;
+  }
+  for (const r of roadsH){ const a=r===68?0:5, b=r===68?95:84;
+    for (let x=a;x<=b;x++) for (const y of [r,r+1]){ tiles[I(x,y)]=ROAD; hFlag[I(x,y)]=1; }
+    hRoadOf[r]=r; hRoadOf[r+1]=r; }
+  for (const c of roadsV){ for (let y=8;y<=69;y++) for (const x of [c,c+1]){ tiles[I(x,y)]=ROAD; vFlag[I(x,y)]=1; }
+    vRoadOf[c]=c; vRoadOf[c+1]=c; }
+  const clear=(x,y)=>{ tiles[I(x,y)]=PARK; hFlag[I(x,y)]=0; vFlag[I(x,y)]=0; };
+  for (let x=59;x<=84;x++) { clear(x,50); clear(x,51); }
+  for (const c of [70,83]) for (let y=38;y<=63;y++) { clear(c,y); clear(c+1,y); }
+
+  for (let a=0;a<roadsV.length-1;a++) for (let b=0;b<roadsH.length-1;b++){
+    const c1=roadsV[a], c2=roadsV[a+1], r1=roadsH[b], r2=roadsH[b+1];
+    if (r1===64) continue;
+    const ix0=c1+2, ix1=c2-1, iy0=r1+2, iy1=r2-1;
+    if (ix0>=59 && iy0>=38 && iy1<=63) continue;
+    for (let y=iy0;y<=iy1;y++) for (let x=ix0;x<=ix1;x++){
+      if (tiles[I(x,y)]===ROAD || districtAt(x,y)==='jazera') continue;
+      if (x===ix0||x===ix1||y===iy0||y===iy1) tiles[I(x,y)]=WALK;
+    }
+    if (districtAt((ix0+ix1)>>1,(iy0+iy1)>>1)==='namestie'){
+      for (let y=iy0;y<=iy1;y++) for (let x=ix0;x<=ix1;x++) tiles[I(x,y)]=PLAZA;
+      addB(37,28,4,4,3,'#a8452e','TURECKÝ DOM');
+      continue;
+    }
+    fillBlock(ix0+1,iy0+1,ix1-1,iy1-1);
+  }
+  // rail, station, underpass
+  for (let x=0;x<W;x++){ tiles[I(x,3)]=RAIL; tiles[I(x,4)]=RAIL; }
+  for (let x=36;x<=51;x++) tiles[I(x,7)]=WALK;
+  addB(38,5,12,2,2,'#7b5b48','STANICA SENEC');
+  for (let y=5;y<=7;y++) for (const x of [24,25]) tiles[I(x,y)]=WALK;
+  addB(22,5,2,2,1,'#77756f','PODCHOD');
+  // lakes
+  const lakes=[[68.5,45,8,5.5],[79,56,9,5.5]];
+  for (let y=38;y<=63;y++) for (let x=59;x<W;x++){
+    for (const [cx,cy,rx,ry] of lakes){
+      const d=((x+.5-cx)/rx)**2+((y+.5-cy)/ry)**2;
+      if (d<1) tiles[I(x,y)]=WATER; else if (d<1.55 && tiles[I(x,y)]===PARK) tiles[I(x,y)]=SAND;
+    }
+  }
+  for (let y=46;y<=50;y++) tiles[I(68,y)]=PIER;
+  addB(60,39,2,1,1,'#3d9a57','BUFET');
+  addB(63,57,3,2,1,'#2a2a2e','PÓDIUM');
+  // trees
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+    const t=tiles[I(x,y)];
+    const near = [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>tileAt(x+dx,y+dy)===ROAD);
+    if (near) continue;
+    if ((t===PARK && rnd()<0.18) || (t===G && rnd()<0.12) || (t===FIELD && y>8 && rnd()<0.03))
+      trees.push({x:(x+.2+rnd()*.6)*T, y:(y+.2+rnd()*.6)*T, r:10+rnd()*8});
+  }
+}
+generate();
+
+function nearestBuilding(tx,ty){ let best=null, bd=1e9;
+  for (const b of buildings){ const cx=Math.max(b.x,Math.min(tx,b.x+b.w-1)), cy=Math.max(b.y,Math.min(ty,b.y+b.h-1));
+    const d=(cx-tx)**2+(cy-ty)**2; if (d<bd){bd=d;best=b;} } return best; }
+function snap(tx,ty,pref){
+  const ok = pref || [WALK,PLAZA,SAND,G,PIER,FIELD,PARK];
+  for (let r=0;r<20;r++) for (let dy=-r;dy<=r;dy++) for (let dx=-r;dx<=r;dx++){
+    if (Math.max(Math.abs(dx),Math.abs(dy))!==r) continue;
+    if (ok.includes(tileAt(tx+dx,ty+dy))) return {x:(tx+dx+.5)*T, y:(ty+dy+.5)*T};
+  }
+  return {x:(tx+.5)*T,y:(ty+.5)*T};
+}
+const sb = nearestBuilding(12,30); sb.label='ŠTÚDIO'; sb.col='#c2a14a';
+const lb = nearestBuilding(75,15); lb.label='LISOVŇA'; lb.col='#4f7a9a';
+const LOC = {
+  studio:{...snap(12,30), name:'Pivničné štúdio'}, trh:{...snap(25,15), name:'Trhovisko'},
+  stanica:{...snap(44,7), name:'Stanica'}, namestie:{...snap(38,27), name:'Turecký dom'},
+  bufet:{...snap(61,40), name:'Bufet pri jazerách'}, garaze:{...snap(25,43), name:'Garáže'},
+  podchod:{...snap(24,6), name:'Podchod'}, molo:{...snap(68,51), name:'Mólo'},
+  lisovna:{...snap(75,15), name:'Lisovňa'}, podium:{...snap(64,59), name:'Pódium'},
+};
+const BOOTHS = [snap(14,34), snap(34,25), snap(47,9), snap(20,37), snap(58,40)];
+
+// ---------------------------------------------------------------- audio
+let AC=null, master=null, noiseBuf=null;
+function initAudio(){
+  if (AC) return; try {
+    AC = new (window.AudioContext||window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = 0.5; master.connect(AC.destination);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate*0.5, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  } catch(e){ AC=null; }
+}
+const clock = () => AC ? AC.currentTime : performance.now()/1000;
+function kick(t){ const o=AC.createOscillator(), g=AC.createGain(); o.frequency.setValueAtTime(130,t); o.frequency.exponentialRampToValueAtTime(42,t+.14);
+  g.gain.setValueAtTime(.9,t); g.gain.exponentialRampToValueAtTime(.001,t+.32); o.connect(g).connect(master); o.start(t); o.stop(t+.35); }
+function noise(t,hp,dur,vol){ const s=AC.createBufferSource(), f=AC.createBiquadFilter(), g=AC.createGain(); s.buffer=noiseBuf; f.type='highpass'; f.frequency.value=hp;
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+dur); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t+dur+.02); }
+function snare(t){ noise(t,1200,.18,.45); const o=AC.createOscillator(), g=AC.createGain(); o.type='triangle'; o.frequency.value=190;
+  g.gain.setValueAtTime(.25,t); g.gain.exponentialRampToValueAtTime(.001,t+.1); o.connect(g).connect(master); o.start(t); o.stop(t+.12); }
+function bass(t,f,dur){ const o=AC.createOscillator(), g=AC.createGain(); o.type='sine'; o.frequency.value=f;
+  g.gain.setValueAtTime(.35,t); g.gain.exponentialRampToValueAtTime(.001,t+dur); o.connect(g).connect(master); o.start(t); o.stop(t+dur+.02); }
+function blip(f,dur,vol){ if(!AC) return; const t=AC.currentTime, o=AC.createOscillator(), g=AC.createGain(); o.type='square'; o.frequency.value=f;
+  g.gain.setValueAtTime(vol||.12,t); g.gain.exponentialRampToValueAtTime(.001,t+dur); o.connect(g).connect(master); o.start(t); o.stop(t+dur+.02); }
+const BPM=92, BEAT=60/BPM, SIX=BEAT/4;
+const KICK=[1,0,0,0, 0,0,0,1, 0,0,1,0, 0,0,0,0], SNR=[0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0], BASSN=[55,0,0,0,0,0,0,0,0,0,49,0,0,0,0,0];
+const beat = { on:false, origin:0, step:0, timer:null,
+  start(origin){ if(!AC) return; this.stop(); this.on=true; this.origin=origin; this.step=0;
+    this.timer=setInterval(()=>this.tick(),25); this.tick(); },
+  stop(){ this.on=false; if(this.timer) clearInterval(this.timer); this.timer=null; },
+  tick(){ while (this.origin + this.step*SIX < AC.currentTime + .12){ const t=this.origin+this.step*SIX, s=this.step%16;
+      if (t>=AC.currentTime-.02){ if(KICK[s]) kick(t); if(SNR[s]) snare(t); if(s%2===0) noise(t,7000,.04,.12); if(BASSN[s]) bass(t,BASSN[s],SIX*6); }
+      this.step++; } }
+};
+
+// ---------------------------------------------------------------- input
+const keys = {};
+const KEYMAP = { ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right',
+  KeyE:'enter', Enter:'enter', Space:'space', KeyR:'radio', KeyP:'pause', Escape:'pause' };
+const pressed = new Set();
+addEventListener('keydown', e => { const k=KEYMAP[e.code]; if(!k) return; e.preventDefault(); if(!keys[k]) pressed.add(k); keys[k]=true; });
+addEventListener('keyup', e => { const k=KEYMAP[e.code]; if(k) keys[k]=false; });
+document.querySelectorAll('#touch .pad').forEach(p => {
+  const k=p.dataset.k;
+  p.addEventListener('pointerdown', e=>{ e.preventDefault(); if(!keys[k]) pressed.add(k); keys[k]=true; });
+  for (const ev of ['pointerup','pointercancel','pointerleave']) p.addEventListener(ev, ()=>{ keys[k]=false; });
+});
+const took = k => { if (pressed.has(k)) { pressed.delete(k); return true; } return false; };
+
+// ---------------------------------------------------------------- entities
+const CARMODELS = [
+  {name:'Škoda 120', col:'#e9e4d4'}, {name:'Škoda 120', col:'#b8382d'}, {name:'Škoda Favorit', col:'#2a5caa'},
+  {name:'Lada 2107', col:'#6b7b3a'}, {name:'Trabant 601', col:'#88b4c4'}, {name:'Tatra 613', col:'#202024'},
+  {name:'Škoda Favorit', col:'#c9c2b0'}, {name:'Dacia 1310', col:'#c98f4a'},
+];
+const PEDCOL = ['#c94a3a','#3b6fb5','#e0c040','#4a8f4a','#ddd','#7a4fa0','#333','#c97a3a'];
+const cars = [], peds = [], police = [];
+const DX=[1,0,-1,0], DY=[0,1,0,-1];
+const laneOf = (dir, r, c) => dir===0 ? (r+1.5)*T : dir===2 ? (r+.5)*T : dir===1 ? (c+.5)*T : (c+1.5)*T;
+
+function makeCar(x,y,angle,model,ai){ return { x,y,angle,speed:0,model,ai,dir:0,turn:null,lastInter:-1,cruise:110+Math.random()*60,stun:0,driver:ai }; }
+
+const player = { x:LOC.studio.x, y:LOC.studio.y, angle:0, car:null, walk:0, cash:200, wanted:0, calm:0, bustT:0 };
+{ const p=snap(Math.floor(LOC.studio.x/T), Math.floor(LOC.studio.y/T), [ROAD]); const c=makeCar(p.x,p.y,0,{name:'Škoda 120 „Eso"',col:'#efe7cf'},false); c.driver=false; c.mine=true; cars.push(c); }
+
+function spawnTraffic(){
+  for (let tries=0; tries<30; tries++){
+    const horiz = Math.random()<.5;
+    let x,y,dir;
+    if (horiz){ const r=rpick(roadsH); dir=Math.random()<.5?0:2; const tx=(Math.random()*W)|0; if(!hFlag[I(tx,r)]||vFlag[I(tx,r)]) continue; x=(tx+.5)*T; y=laneOf(dir,r,0); }
+    else { const c=rpick(roadsV); dir=Math.random()<.5?1:3; const ty=8+((Math.random()*62)|0); if(!vFlag[I(c,ty)]||hFlag[I(c,ty)]) continue; y=(ty+.5)*T; x=laneOf(dir,0,c); }
+    const d=Math.hypot(x-player.x,y-player.y); if (d<14*T || d>32*T) continue;
+    if (cars.some(c=>Math.hypot(c.x-x,c.y-y)<60)) continue;
+    const car=makeCar(x,y,dir*Math.PI/2,rpick(CARMODELS),true); car.dir=dir; cars.push(car); return;
+  }
+}
+const pedOk = t => t===WALK||t===PLAZA||t===SAND||t===PIER;
+function spawnPed(){
+  for (let tries=0; tries<30; tries++){
+    const a=Math.random()*Math.PI*2, d=(12+Math.random()*14)*T;
+    const x=player.x+Math.cos(a)*d, y=player.y+Math.sin(a)*d, tx=Math.floor(x/T), ty=Math.floor(y/T);
+    if (!pedOk(tileAt(tx,ty))) continue;
+    peds.push({x:(tx+.5)*T,y:(ty+.5)*T,dir:(Math.random()*4)|0,col:rpick(PEDCOL),state:'walk',t:0,walk:Math.random()*6}); return;
+  }
+}
+
+// distance field for police
+const dist = new Int32Array(W*H);
+let distT = 0;
+function buildDist(){
+  dist.fill(-1); const q=new Int32Array(W*H); let h=0,t=0;
+  const sx=Math.floor(player.x/T), sy=Math.floor(player.y/T); if(!inb(sx,sy)) return;
+  dist[I(sx,sy)]=0; q[t++]=I(sx,sy);
+  while(h<t){ const c=q[h++], cx=c%W, cy=(c/W)|0;
+    for(let k=0;k<4;k++){ const nx=cx+DX[k], ny=cy+DY[k]; if(!inb(nx,ny)) continue; const n=I(nx,ny);
+      if(dist[n]>=0||isSolid(tiles[n])) continue; dist[n]=dist[c]+1; q[t++]=n; } }
+}
+function spawnPolice(){
+  for (let tries=0; tries<40; tries++){
+    const a=Math.random()*Math.PI*2, d=(13+Math.random()*8)*T;
+    const tx=Math.floor((player.x+Math.cos(a)*d)/T), ty=Math.floor((player.y+Math.sin(a)*d)/T);
+    if (tileAt(tx,ty)!==ROAD || dist[I(tx,ty)]<0) continue;
+    const c=makeCar((tx+.5)*T,(ty+.5)*T,a+Math.PI,{name:'Polícia',col:'#f2f2ee',police:true},false); c.cop=true; police.push(c); cars.push(c); return;
+  }
+}
+
+// ---------------------------------------------------------------- UI helpers
+const $ = id => document.getElementById(id);
+let pagerT = 0;
+function pager(msg, secs){ const p=$('pager'); p.innerHTML='<b>PAGER ▸</b> '+msg; p.style.display='block'; pagerT=secs||5; blip(1760,.08,.08); setTimeout(()=>blip(1760,.08,.08),120); }
+let dialogQ=null, dialogCb=null;
+function dialog(lines, cb){ dialogQ=lines.slice(); dialogCb=cb; nextLine(); }
+function nextLine(){
+  if (!dialogQ || !dialogQ.length){ $('dialog').style.display='none'; const cb=dialogCb; dialogQ=null; dialogCb=null; if(cb) cb(); return; }
+  const [n,t]=dialogQ.shift(); $('dname').textContent=n; $('dtext').textContent=t; $('dialog').style.display='block'; blip(660,.04,.06);
+}
+$('dialog').addEventListener('pointerdown', e=>{ e.preventDefault(); nextLine(); });
+function setWanted(w){ player.wanted=Math.max(0,Math.min(5,w)); player.calm=0;
+  [...$('wanted').children].forEach((s,i)=>s.className=i<player.wanted?'on':''); }
+
+// ---------------------------------------------------------------- missions
+const DAVID='Dávid zo Senca', PA3K='Pa3k Metamorfolord', YOU='Mladý';
+const MISSIONS = [
+  { title:'1/5 · PRVÁ SLOKA', reward:500,
+    intro:[[DAVID,'Takže ty si ten mladý zo sídliska, čo vraj rapuje po slovensky?'],
+           [DAVID,'Keď sme v deväťdesiatom treťom s Geto Gangom robili Politika, nikto neveril, že rap v slovenčine obstojí. Ja rapujem po našom od osemdesiatdeväť.'],
+           [DAVID,'Chceš byť na kompilácii? Kúp prázdnu kazetu na trhovisku a príď do pivnice. Nahráme ťa.'],
+           [YOU,'Idem na to.']],
+    steps:[
+      {type:'goto', loc:'trh', text:'Kúp prázdnu kazetu TDK na trhovisku', done(){ player.cash-=49; pager('KÚPENÉ: TDK D90 — 49 Sk'); }},
+      {type:'goto', loc:'studio', foot:true, text:'Dones kazetu do pivničného štúdia (pešo)'},
+      {type:'rhythm', text:'Nahraj sloku — udri do beatu', need:10, notes:16,
+        lyrics:['Senec, betón, prvá kazeta v ruke,','z pivnice na sídlisku rodia sa tu zvuky,','po slovensky, žiadne cudzie slová,','mladý z jazier — toto je moja doba.']},
+    ],
+    outro:[[DAVID,'No vidíš. Surové, ale je to tvoje. Takto sa začína.']] },
+  { title:'2/5 · ZVUK ULICE', reward:1500,
+    intro:[[DAVID,'Kompilácia sa volá Zvuk ulice. Chalani z celého Slovenska, každý svoj hlas.'],
+           [DAVID,'Mám tri demáky, treba ich rozviezť skôr, ako zavrú. Stanica, Turecký dom, bufet pri jazerách. Potom späť sem. Ber auto, čas beží.']],
+    steps:[
+      {type:'goto', loc:'stanica', timer:200, text:'Demo kazeta: železničná stanica', done(){ pager('DEMO 1/3 DORUČENÉ'); }},
+      {type:'goto', loc:'namestie', text:'Demo kazeta: Turecký dom na námestí', done(){ pager('DEMO 2/3 DORUČENÉ'); }},
+      {type:'goto', loc:'bufet', text:'Demo kazeta: bufet pri Slnečných jazerách', done(){ pager('DEMO 3/3 DORUČENÉ'); }},
+      {type:'goto', loc:'studio', text:'Vráť sa do štúdia'},
+    ],
+    outro:[[DAVID,'Všetko odovzdané? Dobre. Ulica už vie, že niečo prichádza.']] },
+  { title:'3/5 · METAMORFOLORD', reward:2000,
+    intro:[[ 'PAGER','PRÍDE MC Z PIEŠŤAN VLAKOM. VYZDVIHNI HO NA STANICI. NESKOR NEZOBERIEM — DÁVID']],
+    steps:[
+      {type:'goto', loc:'stanica', car:true, text:'Prídi autom na stanicu po hosťa z Piešťan',
+        done(){ dialog([[PA3K,'Čau. Som Pa3k. Metamorfolord. Prišiel som nahrať niečo na Zvuk ulice.'],[YOU,'Sadaj. Dávid nás čaká v pivnici.']]); }},
+      {type:'goto', loc:'studio', car:true, timer:120, passenger:true, text:'Odvez Pa3ka do štúdia, session sa začína'},
+      {type:'rhythm', text:'Drž beat, kým Pa3k nahráva sloku', need:11, notes:16,
+        lyrics:['[Pa3k sa postaví k mikrofónu]','Kick… snare… nedaj mu vypadnúť z rytmu.','[V pivnici je ticho, všetci počúvajú]','[Dávid sa usmeje a zdvihne palec]']},
+    ],
+    outro:[[DAVID,'Tento chalan to niekam dotiahne, uvidíš.'],[PA3K,'Ešte o mne budete počuť.']] },
+  { title:'4/5 · STENY NA JAZERÁCH', reward:1200,
+    intro:[[DAVID,'Kompilácia ide do lisovne. Mesto musí vedieť, že vychádza.'],
+           [DAVID,'Tu máš sprej. Garáže, podchod pod traťou a mólo na jazerách. A daj si pozor, policajti nemajú hip hop radi.']],
+    steps:[
+      {type:'hold', loc:'garaze', secs:3, foot:true, text:'Nasprejuj ZVUK ULICE na garáže (pešo, stoj)', done(){ setWanted(1); pager('POLÍCIA ŤA HĽADÁ'); }},
+      {type:'hold', loc:'podchod', secs:3, foot:true, text:'Nasprejuj podchod pod traťou', done(){ setWanted(2); }},
+      {type:'hold', loc:'molo', secs:3, foot:true, text:'Nasprejuj mólo na jazerách', done(){ setWanted(3); }},
+      {type:'lose', text:'Strať policajtov'},
+      {type:'goto', loc:'studio', text:'Vráť sa do štúdia'},
+    ],
+    outro:[[DAVID,'Videl som to na jazerách. Celý Senec o tom hovorí.']] },
+  { title:'5/5 · KRST KOMPILÁCIE', reward:5000,
+    intro:[[DAVID,'Dnes večer krstíme Zvuk ulice. Pódium pri jazerách, príde celá scéna.'],
+           [DAVID,'Vyzdvihni kazety v lisovni a dones ich na pódium. A potom… mikrofón je tvoj.']],
+    steps:[
+      {type:'goto', loc:'lisovna', text:'Vyzdvihni krabicu kaziet v lisovni', done(){ pager('MÁŠ 500 KS KAZIET. RÝCHLO NA PÓDIUM!'); }},
+      {type:'goto', loc:'podium', timer:110, text:'Dones kazety na pódium pri jazerách'},
+      {type:'rhythm', text:'Vystúp na krste! Udri do beatu', need:13, notes:20,
+        lyrics:['Celá scéna tu, jazerá horia svetlom,','Zvuk ulice znie z každého okna v meste,','čo začalo v pivnici, počuje celý kraj,','Senec, zdvihni ruky — toto je náš štart!','[dav kričí]']},
+    ],
+    outro:[[DAVID,'Toto je Zvuk ulice. Odtiaľto to všetko začalo.']] },
+];
+const state = { mode:'intro', mission:-1, next:0, step:0, timer:null, hold:0, passenger:false, rhythm:null, done:false };
+
+function curStep(){ return state.mission>=0 ? MISSIONS[state.mission].steps[state.step] : null; }
+function target(){
+  if (state.mission<0) return state.next<MISSIONS.length ? BOOTHS[state.next] : null;
+  const s=curStep(); return s && s.loc ? LOC[s.loc] : null;
+}
+function startMission(i){
+  state.mission=i; state.step=0; state.timer=null; state.hold=0; state.passenger=false;
+  $('mtitle').textContent=MISSIONS[i].title;
+  dialog(MISSIONS[i].intro, beginStep);
+}
+function beginStep(){ const s=curStep(); if(!s) return; state.hold=0;
+  if (s.timer) state.timer=s.timer; if (s.passenger) state.passenger=true;
+  if (s.type==='rhythm') startRhythm(s);
+  updateObjective(); }
+function advance(){
+  const s=curStep(); if (s.done) s.done();
+  state.step++;
+  const m=MISSIONS[state.mission];
+  if (state.step>=m.steps.length) return completeMission();
+  const go=()=>beginStep();
+  if (dialogQ){ const cb=dialogCb; dialogCb=()=>{ if(cb) cb(); go(); }; } else go();
+}
+function completeMission(){
+  const m=MISSIONS[state.mission];
+  state.timer=null; state.passenger=false; setWanted(0);
+  dialog(m.outro, ()=>{
+    player.cash+=m.reward; pager('MISIA SPLNENÁ · RESPEKT +'+m.reward+' Sk', 6);
+    state.next=state.mission+1; state.mission=-1; $('mtitle').textContent='';
+    if (state.next>=MISSIONS.length){ state.done=true; $('ending').style.display='flex'; state.mode='ending'; beat.stop(); }
+    else setTimeout(()=>pager('ZAVOLAJ Z TELEFÓNNEJ BÚDKY — ĎALŠIA AKCIA ČAKÁ',6), 3000);
+    updateObjective();
+  });
+}
+function failMission(reason){
+  if (state.mission<0) return;
+  pager('MISIA ZLYHALA: '+reason, 6); blip(110,.5,.2);
+  state.next=state.mission; state.mission=-1; state.timer=null; state.passenger=false; state.rhythm=null;
+  $('mtitle').textContent=''; updateObjective();
+}
+function updateObjective(){
+  const s=curStep();
+  if (s) $('mobj').textContent = s.text + (s.foot?' ':'');
+  else if (state.next<MISSIONS.length) $('mobj').textContent='Choď k telefónnej búdke (žltá) — '+MISSIONS[state.next].title;
+  else $('mobj').textContent='Voľná jazda';
+}
+
+// ---------------------------------------------------------------- rhythm minigame
+function startRhythm(s){
+  const origin = clock()+0.15;
+  state.rhythm = { origin, notes:Array.from({length:s.notes},(_,i)=>({t:origin+(4+i)*BEAT, hit:0})), need:s.need, hits:0, lyrics:s.lyrics, flash:0, end:origin+(4+s.notes+1)*BEAT };
+  beat.start(origin);
+}
+function rhythmPress(){
+  const r=state.rhythm, now=clock(); let best=null, bd=1;
+  for (const n of r.notes){ if (n.hit) continue; const d=Math.abs(n.t-now); if (d<bd){bd=d;best=n;} }
+  if (best && bd<0.14){ best.hit=1; r.hits++; r.flash=0.15; noise(AC?AC.currentTime:0,3000,.06,.25); }
+  else if (best && bd<0.4) { best.hit=-1; blip(140,.08,.1); }
+}
+function updateRhythm(){
+  const r=state.rhythm, now=clock();
+  for (const n of r.notes) if (!n.hit && now-n.t>0.14) n.hit=-1;
+  if (now>r.end){
+    beat.stop(); state.rhythm=null;
+    if (r.hits>=r.need){ pager('NAHRÁVKA: '+r.hits+'/'+r.notes.length+' — PERFEKTNÉ!'); advance(); }
+    else { pager('IBA '+r.hits+'/'+r.notes.length+' (treba '+r.need+') — ESTE RAZ'); setTimeout(()=>{ if(curStep()&&curStep().type==='rhythm') startRhythm(curStep()); }, 1500); }
+  }
+}
+
+// ---------------------------------------------------------------- update
+function moveCircle(o, nx, ny, rad){
+  let hitX=false, hitY=false;
+  if (!solidPx(nx+rad*Math.sign(nx-o.x||1), o.y-rad+1) && !solidPx(nx+rad*Math.sign(nx-o.x||1), o.y+rad-1)) o.x=nx; else hitX=true;
+  if (!solidPx(o.x-rad+1, ny+rad*Math.sign(ny-o.y||1)) && !solidPx(o.x+rad-1, ny+rad*Math.sign(ny-o.y||1))) o.y=ny; else hitY=true;
+  return hitX||hitY;
+}
+function driveCar(c, dt, up, down, left, right, brake, maxV){
+  const fwd = up?1:0, back = down?1:0;
+  if (fwd) c.speed += 300*dt; else if (back) c.speed -= (c.speed>0?520:200)*dt;
+  c.speed = Math.max(-120, Math.min(maxV, c.speed));
+  const drag = brake ? 3.2 : (fwd||back ? 0.4 : 1.4);
+  c.speed -= c.speed*drag*dt;
+  const steer = (right?1:0)-(left?1:0);
+  const k = Math.min(1, Math.abs(c.speed)/90) * Math.sign(c.speed);
+  c.angle += steer * 2.7 * k * dt * (brake?1.4:1);
+  const nx=c.x+Math.cos(c.angle)*c.speed*dt, ny=c.y+Math.sin(c.angle)*c.speed*dt;
+  if (moveCircle(c,nx,ny,9)) { if (Math.abs(c.speed)>120) blip(80,.12,.15); c.speed*=-0.3; }
+}
+function carCollisions(){
+  for (let i=0;i<cars.length;i++) for (let j=i+1;j<cars.length;j++){
+    const a=cars[i], b=cars[j], dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy);
+    if (d<22 && d>0.01){ const p=(22-d)/2, ux=dx/d, uy=dy/d;
+      moveCircle(a,a.x-ux*p,a.y-uy*p,9); moveCircle(b,b.x+ux*p,b.y+uy*p,9);
+      if (a===player.car||b===player.car){ const o=a===player.car?b:a; o.stun=1.5; player.car.speed*=0.6; } }
+  }
+}
+function aiCar(c, dt){
+  if (c.stun>0){ c.stun-=dt; c.speed*=0.9; }
+  const dx=DX[c.dir], dy=DY[c.dir];
+  let blocked=false;
+  const others = player.car ? cars : cars.concat([{x:player.x,y:player.y}]);
+  for (const o of others){ if (o===c) continue; const ox=o.x-c.x, oy=o.y-c.y; const fw=ox*dx+oy*dy, lat=Math.abs(ox*dy-oy*dx);
+    if (fw>0 && fw<48 && lat<16){ blocked=true; break; } }
+  for (const p of peds){ if (p.state==='down') continue; const ox=p.x-c.x, oy=p.y-c.y; const fw=ox*dx+oy*dy, lat=Math.abs(ox*dy-oy*dx); if (fw>0&&fw<36&&lat<12){blocked=true;break;} }
+  const tgt = blocked||c.stun>0 ? 0 : c.cruise;
+  c.speed += Math.sign(tgt-c.speed)*Math.min(Math.abs(tgt-c.speed), 260*dt);
+  c.x += dx*c.speed*dt; c.y += dy*c.speed*dt;
+  c.angle = c.dir*Math.PI/2;
+  const tx=Math.floor(c.x/T), ty=Math.floor(c.y/T);
+  if (c.turn){
+    const t=c.turn, passed = c.dir===0? c.x>=t.px : c.dir===2? c.x<=t.px : c.dir===1? c.y>=t.py : c.y<=t.py;
+    if (passed){ c.x=t.px; c.y=t.py; c.dir=t.nd; c.turn=null; }
+    return;
+  }
+  if (inb(tx,ty) && hFlag[I(tx,ty)] && vFlag[I(tx,ty)]){
+    const r=hRoadOf[ty], cc=vRoadOf[tx], key=r*1000+cc;
+    if (key!==c.lastInter){
+      c.lastInter=key;
+      const cont = d => d===0 ? hFlag[I(Math.min(W-1,cc+2),r)] && cc+2<W : d===2 ? cc-1>=0 && hFlag[I(cc-1,r)] : d===1 ? r+2<H && vFlag[I(cc,r+2)] : r-1>=0 && vFlag[I(cc,r-1)];
+      const opts=[]; const st=c.dir, rt=(c.dir+1)%4, lt=(c.dir+3)%4;
+      if (cont(st)) opts.push(st,st); if (cont(rt)) opts.push(rt); if (cont(lt)) opts.push(lt);
+      const nd = opts.length ? rpick(opts) : (c.dir+2)%4;
+      if (nd!==c.dir){
+        if (nd===1||nd===3) c.turn={px:laneOf(nd,r,cc), py:c.y, nd}; else c.turn={px:c.x, py:laneOf(nd,r,cc), nd};
+        if (nd===(c.dir+2)%4){ c.dir=nd; c.turn=null; if(nd===0||nd===2) c.y=laneOf(nd,r,cc); else c.x=laneOf(nd,r,cc); }
+      }
+    }
+    return;
+  }
+  const ax=Math.floor((c.x+dx*T*0.6)/T), ay=Math.floor((c.y+dy*T*0.6)/T);
+  if (tileAt(ax,ay)!==ROAD){
+    c.dir=(c.dir+2)%4; c.lastInter=-1;
+    if (c.dir===0||c.dir===2){ const r=hRoadOf[ty]; if(r>=0) c.y=laneOf(c.dir,r,0); } else { const cc=vRoadOf[tx]; if(cc>=0) c.x=laneOf(c.dir,0,cc); }
+  }
+}
+function copCar(c, dt){
+  const tx=Math.floor(c.x/T), ty=Math.floor(c.y/T);
+  let gx=player.x, gy=player.y;
+  const dp=Math.hypot(player.x-c.x, player.y-c.y);
+  if (dp>3*T && inb(tx,ty) && dist[I(tx,ty)]>0){
+    let best=dist[I(tx,ty)], bx=tx, by=ty;
+    for (let k=0;k<4;k++){ const nx=tx+DX[k], ny=ty+DY[k]; if(!inb(nx,ny)) continue; const v=dist[I(nx,ny)]; if (v>=0 && v<best){best=v;bx=nx;by=ny;} }
+    gx=(bx+.5)*T; gy=(by+.5)*T;
+  }
+  const want=Math.atan2(gy-c.y, gx-c.x);
+  let da=((want-c.angle+Math.PI*3)%(Math.PI*2))-Math.PI;
+  c.angle += Math.max(-3.2*dt, Math.min(3.2*dt, da));
+  const maxV = dp<60 ? 90 : 250;
+  driveCar(c, dt, Math.abs(da)<1.2, false, false, false, false, c.stun>0?40:maxV);
+  if (c.stun>0) c.stun-=dt;
+}
+function updatePeds(dt){
+  for (const p of peds){
+    if (p.state==='down'){ p.t-=dt; if (p.t<=0) p.state='walk'; continue; }
+    const pc=player.car;
+    let sp=34;
+    if (pc && Math.abs(pc.speed)>80 && Math.hypot(pc.x-p.x,pc.y-p.y)<90){ p.state='flee'; sp=90; }
+    else p.state='walk';
+    if (pc && Math.abs(pc.speed)>70 && Math.hypot(pc.x-p.x,pc.y-p.y)<15){ p.state='down'; p.t=4; pc.speed*=0.8; blip(200,.1,.15);
+      if (player.wanted<1 && Math.random()<0.6) { setWanted(1); pager('SVEDKOVIA VOLAJÚ POLÍCIU'); } continue; }
+    let ax, ay;
+    if (p.state==='flee'){ ax=p.x-pc.x; ay=p.y-pc.y; const l=Math.hypot(ax,ay)||1; ax/=l; ay/=l; }
+    else { ax=DX[p.dir]; ay=DY[p.dir]; }
+    const nx=p.x+ax*sp*dt, ny=p.y+ay*sp*dt;
+    if (pedOk(tileAt(Math.floor((nx+ax*6)/T), Math.floor((ny+ay*6)/T)))){ p.x=nx; p.y=ny; p.walk+=dt*sp/6; }
+    else p.dir=(Math.random()*4)|0;
+    if (Math.random()<dt*0.15) p.dir=(Math.random()*4)|0;
+  }
+}
+
+function busted(){
+  blip(90,.6,.25); setTimeout(()=>blip(70,.6,.25),250);
+  const fine=Math.floor(player.cash*0.1);
+  player.cash-=fine;
+  pager('ZATKNUTÝ! POKUTA '+fine+' Sk', 6);
+  failMission('zatkli ťa');
+  if (player.car){ player.car.driver=false; player.car.speed=0; player.car=null; }
+  player.x=LOC.studio.x; player.y=LOC.studio.y;
+  setWanted(0);
+  for (const c of police){ const i=cars.indexOf(c); if(i>=0) cars.splice(i,1); } police.length=0;
+}
+
+let radioOn=true;
+const RADIO_NAME='RÁDIO SENEC · mixtape Zvuk ulice ♪';
+function updateRadio(){
+  const should = radioOn && player.car && !state.rhythm && state.mode==='play';
+  if (should && !beat.on) beat.start(clock()+0.05);
+  if (!should && beat.on && !state.rhythm) beat.stop();
+  $('radio').textContent = player.car ? (radioOn ? RADIO_NAME : 'RÁDIO VYP (R)') : '';
+}
+
+function update(dt){
+  pagerT-=dt; if (pagerT<=0) $('pager').style.display='none';
+  if (state.rhythm){ if (took('space')) rhythmPress(); pressed.clear(); updateRhythm(); return; }
+  if (dialogQ){ if (took('enter')||took('space')) nextLine(); pressed.clear(); return; }
+  if (took('radio')) { radioOn=!radioOn; }
+
+  if (took('enter')){
+    if (player.car){
+      const c=player.car, ox=Math.cos(c.angle-Math.PI/2)*20, oy=Math.sin(c.angle-Math.PI/2)*20;
+      if (!solidPx(c.x+ox,c.y+oy)){ player.x=c.x+ox; player.y=c.y+oy; } else if (!solidPx(c.x-ox,c.y-oy)) { player.x=c.x-ox; player.y=c.y-oy; }
+      else { player.x=c.x; player.y=c.y; }
+      c.speed=0; c.driver=false; c.ai=false; player.car=null;
+    } else {
+      let best=null, bd=42;
+      for (const c of cars){ if (c.cop) continue; const d=Math.hypot(c.x-player.x,c.y-player.y); if (d<bd){bd=d;best=c;} }
+      if (best){
+        if (best.driver){ peds.push({x:best.x+12,y:best.y+12,dir:(Math.random()*4)|0,col:rpick(PEDCOL),state:'walk',t:0,walk:0}); pager('VODIČ VYSKOČIL Z AUTA: '+best.model.name.toUpperCase()); }
+        else pager(best.model.name.toUpperCase(), 3);
+        best.ai=false; best.driver=false; best.turn=null; player.car=best;
+      }
+    }
+  }
+
+  if (player.car){
+    const c=player.car;
+    driveCar(c, dt, keys.up, keys.down, keys.left, keys.right, keys.space, 340);
+    player.x=c.x; player.y=c.y;
+  } else {
+    let mx=(keys.right?1:0)-(keys.left?1:0), my=(keys.down?1:0)-(keys.up?1:0);
+    if (mx||my){ const l=Math.hypot(mx,my); mx/=l; my/=l; player.angle=Math.atan2(my,mx); player.walk+=dt*14;
+      moveCircle(player, player.x+mx*120*dt, player.y+my*120*dt, 6); }
+  }
+  for (const c of cars){ if (c===player.car) continue; if (c.cop) copCar(c,dt); else if (c.ai) aiCar(c,dt); }
+  carCollisions();
+  if (player.car) { player.x=player.car.x; player.y=player.car.y; }
+  updatePeds(dt);
+
+  // police & wanted
+  distT-=dt; if (distT<=0){ buildDist(); distT=0.5; }
+  const wantCops = player.wanted===0 ? 0 : Math.min(5, player.wanted);
+  if (police.length<wantCops && Math.random()<dt*0.8) spawnPolice();
+  if (player.wanted===0 && police.length){ for (const c of police.splice(0)){ const i=cars.indexOf(c); if(i>=0) cars.splice(i,1); } }
+  let nearCop=1e9; for (const c of police) nearCop=Math.min(nearCop, Math.hypot(c.x-player.x,c.y-player.y));
+  if (player.wanted>0){
+    if (nearCop>420){ player.calm+=dt; if (player.calm>9){ setWanted(player.wanted-1); if(player.wanted===0) pager('POLÍCIA ŤA STRATILA Z OČÍ'); } }
+    else player.calm=0;
+    const slow = !player.car || Math.abs(player.car.speed)<40;
+    if (nearCop<(player.car?40:30) && slow) player.bustT+=dt; else player.bustT=Math.max(0,player.bustT-dt);
+    if (player.bustT>(player.car?1.5:0.4)){ player.bustT=0; busted(); }
+  }
+
+  // population
+  for (let i=cars.length-1;i>=0;i--){ const c=cars[i]; if (c===player.car||c.mine||c.cop) continue;
+    if (Math.hypot(c.x-player.x,c.y-player.y)>40*T) cars.splice(i,1); }
+  for (let i=peds.length-1;i>=0;i--) if (Math.hypot(peds[i].x-player.x,peds[i].y-player.y)>34*T) peds.splice(i,1);
+  if (cars.filter(c=>c.ai).length<24) spawnTraffic();
+  if (peds.length<38) spawnPed();
+
+  // missions
+  if (state.mission<0){
+    if (state.next<MISSIONS.length){ const b=BOOTHS[state.next];
+      if (Math.hypot(b.x-player.x,b.y-player.y)<26 && !player.car) startMission(state.next);
+      else if (Math.hypot(b.x-player.x,b.y-player.y)<26 && player.car && took('space')===false) { /* must be on foot */ } }
+  } else {
+    const s=curStep();
+    if (state.timer!==null){ state.timer-=dt; if (state.timer<=0) { failMission('nestihol si to'); } }
+    if (s && state.mission>=0){
+      if (s.type==='goto' || s.type==='hold'){
+        const L=LOC[s.loc], d=Math.hypot(L.x-player.x,L.y-player.y);
+        const okMode = (!s.foot || !player.car) && (!s.car || player.car);
+        if (d<(player.car?44:28) && okMode){
+          if (s.type==='hold'){ state.hold+=dt; if (state.hold>=s.secs) advance(); }
+          else advance();
+        } else state.hold=Math.max(0,state.hold-dt);
+      } else if (s.type==='lose'){ if (player.wanted===0) advance(); }
+    }
+  }
+  if (state.mission>=0 && took('pause')===false) {}
+  pressed.clear();
+
+  // HUD text
+  $('cash').textContent='Sk '+player.cash;
+  const tx=Math.floor(player.x/T), ty=Math.floor(player.y/T);
+  $('area').textContent=AREA[districtAt(tx,ty)];
+  $('mtimer').textContent = state.timer!==null && state.mission>=0 ? Math.max(0,Math.ceil(state.timer))+' s' : '';
+  const s=curStep();
+  if (s){
+    let t=s.text;
+    if (s.foot && player.car) t+=' · vystúp z auta (E)';
+    if (s.car && !player.car) t+=' · potrebuješ auto';
+    if (s.type==='hold' && state.hold>0) t+=' · '+Math.min(100,Math.floor(state.hold/s.secs*100))+'%';
+    if (state.passenger) t+=' · Pa3k sedí vedľa';
+    $('mobj').textContent=t;
+  }
+  updateRadio();
+}
+
+// ---------------------------------------------------------------- render
+const cv=$('game'), ctx=cv.getContext('2d');
+const mm=$('minimap'), mctx=mm.getContext('2d');
+let vw=0, vh=0, dpr=1, zoom=1, camX=player.x, camY=player.y;
+function resize(){ dpr=Math.min(2, devicePixelRatio||1); vw=cv.clientWidth; vh=cv.clientHeight; cv.width=vw*dpr; cv.height=vh*dpr; }
+addEventListener('resize', resize); resize();
+
+const TCOL = {[G]:'#5d7a3a',[ROAD]:'#3a3a3e',[WALK]:'#9b968a',[BLD]:'#777',[WATER]:'#2c6c8c',[RAIL]:'#5a4b3c',[PLAZA]:'#b9ad94',[SAND]:'#d9c58e',[PARK]:'#4f7a35',[FIELD]:'#878d44',[PIER]:'#8b6a43'};
+const ground=document.createElement('canvas'); ground.width=W*T; ground.height=H*T;
+(function paintGround(){
+  const g=ground.getContext('2d');
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+    const t=tiles[I(x,y)], px=x*T, py=y*T;
+    g.fillStyle=TCOL[t===BLD?WALK:t]; g.fillRect(px,py,T,T);
+    if (t===G||t===PARK||t===FIELD){ g.fillStyle='rgba(0,0,0,.07)'; for(let k=0;k<5;k++) g.fillRect(px+((x*7+k*13+y*3)%28),py+((y*11+k*7)%28),3,3);
+      if (t===FIELD && y%2===0){ g.fillStyle='rgba(255,240,150,.06)'; g.fillRect(px,py+4,T,4); } }
+    if (t===PLAZA){ g.strokeStyle='rgba(0,0,0,.12)'; g.lineWidth=1; for(let k=0;k<T;k+=8){ g.beginPath(); g.moveTo(px+k,py); g.lineTo(px+k,py+T); g.moveTo(px,py+k); g.lineTo(px+T,py+k); g.stroke(); } }
+    if (t===WALK){ g.strokeStyle='rgba(0,0,0,.15)'; g.strokeRect(px+.5,py+.5,T-1,T-1); }
+    if (t===RAIL){ g.fillStyle='#3e3329'; for(let k=2;k<T;k+=8) g.fillRect(px+k,py+4,4,T-8); g.fillStyle='#b0aaa0'; g.fillRect(px,py+9,T,2); g.fillRect(px,py+21,T,2); }
+    if (t===PIER){ g.fillStyle='rgba(0,0,0,.25)'; for(let k=0;k<T;k+=6) g.fillRect(px,py+k,T,1); }
+    if (t===WATER){ g.fillStyle='rgba(255,255,255,.06)'; g.fillRect(px+((x*5)%20),py+((y*9)%24),8,2); }
+    if (t===ROAD){
+      const h=hFlag[I(x,y)], v=vFlag[I(x,y)];
+      g.fillStyle='rgba(255,255,255,.03)'; g.fillRect(px+((x*13)%26),py+((y*17)%26),5,5);
+      if (h && !v && hRoadOf[y]===y){ g.fillStyle=y===68?'#e8c34a':'#e4e0d2'; if (y===68) g.fillRect(px,py+T-1.5,T,3); else if (x%2===0) g.fillRect(px+4,py+T-1.5,18,3); }
+      if (v && !h && vRoadOf[x]===x && x%1===0){ g.fillStyle='#e4e0d2'; if (y%2===0) g.fillRect(px+T-1.5,py+4,3,18); }
+    }
+    if (t!==ROAD && t!==WATER){ // curb next to road
+      g.fillStyle='rgba(0,0,0,.35)';
+      if (tileAt(x+1,y)===ROAD) g.fillRect(px+T-2,py,2,T); if (tileAt(x-1,y)===ROAD) g.fillRect(px,py,2,T);
+      if (tileAt(x,y+1)===ROAD) g.fillRect(px,py+T-2,T,2); if (tileAt(x,y-1)===ROAD) g.fillRect(px,py,T,2);
+    }
+  }
+  // zebra crossings around the square
+  g.fillStyle='#e4e0d2';
+  for (const [x,y,horiz] of [[38,22,1],[38,36,1],[31,30,0],[44,30,0]]) for (let k=0;k<6;k++){ if (horiz) g.fillRect(x*T+k*10,y*T+4,6,2*T-8); else g.fillRect(x*T+4,y*T+k*10,2*T-8,6); }
+})();
+const mini=document.createElement('canvas'); mini.width=W*2; mini.height=H*2;
+(function(){ const g=mini.getContext('2d'); for (let y=0;y<H;y++) for (let x=0;x<W;x++){ const t=tiles[I(x,y)]; g.fillStyle=t===BLD?'#26262a':t===ROAD?'#8a8a8a':TCOL[t]; g.fillRect(x*2,y*2,2,2); } })();
+
+function shade(hex, f){ const n=parseInt(hex.slice(1),16); let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  r=Math.min(255,r*f)|0; g=Math.min(255,g*f)|0; b=Math.min(255,b*f)|0; return `rgb(${r},${g},${b})`; }
+for (const b of buildings){ b.wallA=shade(b.col,.55); b.wallB=shade(b.col,.72); b.roofEdge=shade(b.col,.85); b.roofIn=shade(b.col,1.08); }
+
+const PK=0.0016;
+function drawBuilding(b){
+  const x0=b.x*T, y0=b.y*T, x1=(b.x+b.w)*T, y1=(b.y+b.h)*T;
+  const ox=((x0+x1)/2-camX)*b.hg*PK*4, oy=((y0+y1)/2-camY)*b.hg*PK*4;
+  const q=(ax,ay,bx,by,col)=>{ ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.lineTo(bx+ox,by+oy); ctx.lineTo(ax+ox,ay+oy); ctx.closePath(); ctx.fill(); };
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(x0+4,y0+4,x1-x0,y1-y0);
+  if (ox<0) q(x0,y0,x0,y1,b.wallA); else q(x1,y0,x1,y1,b.wallA);
+  if (oy<0) q(x0,y0,x1,y0,b.wallB); else q(x0,y1,x1,y1,b.wallB);
+  ctx.fillStyle=b.roofEdge; ctx.fillRect(x0+ox,y0+oy,x1-x0,y1-y0);
+  ctx.fillStyle=b.roofIn; ctx.fillRect(x0+ox+3,y0+oy+3,x1-x0-6,y1-y0-6);
+  if (b.hg>=7){ ctx.fillStyle=b.wallB; const n=Math.max(b.w,b.h)/3|0; for(let k=0;k<n;k++){ const fx=b.w>=b.h? x0+ox+(k+.5)*(x1-x0)/n-6 : x0+ox+(x1-x0)/2-6, fy=b.w>=b.h? y0+oy+(y1-y0)/2-6 : y0+oy+(k+.5)*(y1-y0)/n-6; ctx.fillRect(fx,fy,12,12);} }
+  if (b.label){ ctx.save(); ctx.font='bold 11px "Space Mono",monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(0,0,0,.55)'; const tw=ctx.measureText(b.label).width+10; ctx.fillRect((x0+x1)/2+ox-tw/2,(y0+y1)/2+oy-9,tw,18);
+    ctx.fillStyle='#f2c230'; ctx.fillText(b.label,(x0+x1)/2+ox,(y0+y1)/2+oy+1); ctx.restore(); }
+}
+function drawCar(c){
+  ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.angle);
+  ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(-14,-6,30,16);
+  ctx.fillStyle=c.model.col; ctx.fillRect(-15,-8,30,16);
+  if (c.cop){ ctx.fillStyle='#2f8a4a'; ctx.fillRect(-15,-2,30,4); }
+  ctx.fillStyle=shade(c.model.col,.75); ctx.fillRect(-7,-6,13,12);
+  ctx.fillStyle='#9cc3d6'; ctx.fillRect(5,-6,3,12); ctx.fillRect(-9,-6,2,12);
+  ctx.fillStyle='#fff6c0'; ctx.fillRect(13,-7,2,3); ctx.fillRect(13,4,2,3);
+  ctx.fillStyle='#8a1c14'; ctx.fillRect(-15,-7,2,3); ctx.fillRect(-15,4,2,3);
+  if (c.cop){ const on=(performance.now()/180|0)%2; ctx.fillStyle=on?'#3a7bff':'#ff3a3a'; ctx.fillRect(-2,-5,4,4); ctx.fillStyle=on?'#ff3a3a':'#3a7bff'; ctx.fillRect(-2,1,4,4); }
+  ctx.restore();
+}
+function drawPed(x,y,ang,col,walk,down){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+  if (down){ ctx.fillStyle='#7a1a12'; ctx.globalAlpha=.5; ctx.beginPath(); ctx.ellipse(0,0,10,6,0,0,7); ctx.fill(); ctx.globalAlpha=1;
+    ctx.fillStyle=col; ctx.fillRect(-8,-4,14,8); ctx.fillStyle='#e0b48c'; ctx.beginPath(); ctx.arc(8,0,3.5,0,7); ctx.fill(); ctx.restore(); return; }
+  const s=Math.sin(walk)*3;
+  ctx.fillStyle='#222'; ctx.fillRect(-2+s,-4,4,3); ctx.fillRect(-2-s,1,4,3);
+  ctx.fillStyle=col; ctx.fillRect(-4,-6,7,12);
+  ctx.fillStyle='#3a2a1e'; ctx.beginPath(); ctx.arc(0,0,3.8,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawBooth(b, active){
+  ctx.save(); ctx.translate(b.x,b.y);
+  if (active){ const p=1+Math.sin(performance.now()/200)*.15; ctx.strokeStyle='#f2c230'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,22*p,0,7); ctx.stroke(); }
+  ctx.fillStyle='rgba(0,0,0,.3)'; ctx.fillRect(-6,-4,14,14);
+  ctx.fillStyle=active?'#f2c230':'#9a8a40'; ctx.fillRect(-7,-7,14,14);
+  ctx.fillStyle='#222'; ctx.fillRect(-4,-4,8,5); ctx.restore();
+}
+function drawTarget(t){
+  const p=1+Math.sin(performance.now()/160)*.2;
+  ctx.strokeStyle='#f2c230'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(t.x,t.y,20*p,0,7); ctx.stroke();
+  ctx.fillStyle='rgba(242,194,48,.25)'; ctx.beginPath(); ctx.arc(t.x,t.y,20*p,0,7); ctx.fill();
+}
+function drawArrow(t){
+  const a=Math.atan2(t.y-player.y,t.x-player.x), d=Math.hypot(t.x-player.x,t.y-player.y);
+  if (d<60) return;
+  ctx.save(); ctx.translate(player.x+Math.cos(a)*34, player.y+Math.sin(a)*34); ctx.rotate(a);
+  ctx.fillStyle='#f2c230'; ctx.strokeStyle='#000'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(12,0); ctx.lineTo(-6,-8); ctx.lineTo(-2,0); ctx.lineTo(-6,8); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+}
+
+function render(){
+  const base = Math.max(vw,vh)/(26*T);
+  const sp = player.car ? Math.min(1, Math.abs(player.car.speed)/330) : 0;
+  const zt = base*(1.15 - 0.4*sp);
+  zoom += (zt-zoom)*0.05;
+  const lead = player.car ? 0.35 : 0;
+  const tx = player.x + (player.car ? Math.cos(player.car.angle)*player.car.speed*lead : 0);
+  const ty = player.y + (player.car ? Math.sin(player.car.angle)*player.car.speed*lead : 0);
+  camX += (tx-camX)*0.12; camY += (ty-camY)*0.12;
+
+  ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#22261b'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(dpr*zoom,0,0,dpr*zoom, dpr*(vw/2-camX*zoom), dpr*(vh/2-camY*zoom));
+  const hw=vw/2/zoom+T*3, hh=vh/2/zoom+T*3;
+  const vx0=camX-hw, vy0=camY-hh, vx1=camX+hw, vy1=camY+hh;
+  const sx=Math.max(0,vx0), sy=Math.max(0,vy0), ex=Math.min(W*T,vx1), ey=Math.min(H*T,vy1);
+  if (ex>sx && ey>sy) ctx.drawImage(ground, sx,sy,ex-sx,ey-sy, sx,sy,ex-sx,ey-sy);
+  const vis = (x,y,m) => x>vx0-m && x<vx1+m && y>vy0-m && y<vy1+m;
+
+  if (state.mission<0 && state.next<MISSIONS.length) drawBooth(BOOTHS[state.next], true);
+  const tgt=target(); if (tgt && state.mission>=0) drawTarget(tgt);
+  for (const p of peds) if (vis(p.x,p.y,20)) drawPed(p.x,p.y,p.dir*Math.PI/2,p.col,p.walk,p.state==='down');
+  if (!player.car) drawPed(player.x,player.y,player.angle,'#f2c230',player.walk,false);
+  for (const c of cars) if (vis(c.x,c.y,30)) drawCar(c);
+  for (const b of buildings){ const cx=(b.x+b.w/2)*T, cy=(b.y+b.h/2)*T; if (vis(cx,cy,Math.max(b.w,b.h)*T)) drawBuilding(b); }
+  for (const t of trees) if (vis(t.x,t.y,30)){
+    const ox=(t.x-camX)*PK*6, oy=(t.y-camY)*PK*6;
+    ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.arc(t.x+4,t.y+4,t.r,0,7); ctx.fill();
+    ctx.fillStyle='#2f5a22'; ctx.beginPath(); ctx.arc(t.x+ox,t.y+oy,t.r,0,7); ctx.fill();
+    ctx.fillStyle='#3f7330'; ctx.beginPath(); ctx.arc(t.x+ox-t.r*.25,t.y+oy-t.r*.25,t.r*.6,0,7); ctx.fill();
+  }
+  if (tgt) drawArrow(tgt);
+
+  // night-ish tint for the final mission
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if (state.mission===4 || state.done){ ctx.fillStyle='rgba(20,10,60,.28)'; ctx.fillRect(0,0,vw,vh); }
+  if (state.rhythm) drawRhythm();
+
+  // minimap
+  mctx.fillStyle='#000'; mctx.fillRect(0,0,192,144); mctx.drawImage(mini,0,0);
+  const dot=(x,y,c,r)=>{ mctx.fillStyle=c; mctx.fillRect(x/T*2-r,y/T*2-r,r*2,r*2); };
+  for (const c of police) dot(c.x,c.y,'#3a7bff',2);
+  if (tgt){ const blink=(performance.now()/300|0)%2; if (blink) dot(tgt.x,tgt.y,'#f2c230',3); }
+  dot(player.x,player.y,'#fff',2.5);
+}
+function drawRhythm(){
+  const r=state.rhythm, now=clock();
+  const bw=Math.min(560,vw-24), bx=(vw-bw)/2, by=vh*0.32;
+  ctx.fillStyle='rgba(10,10,12,.86)'; ctx.fillRect(bx-10,by-70,bw+20,190);
+  ctx.strokeStyle='#f2c230'; ctx.lineWidth=2; ctx.strokeRect(bx-10,by-70,bw+20,190);
+  ctx.fillStyle='#f2c230'; ctx.font='20px Anton, sans-serif'; ctx.textAlign='left'; ctx.fillText('NAHRÁVANIE ● REC', bx, by-42);
+  ctx.textAlign='right'; ctx.fillStyle='#ece6d6'; ctx.font='bold 13px "Space Mono",monospace';
+  ctx.fillText('ZÁSAHY '+r.hits+' / '+r.need, bx+bw, by-42);
+  const hitX=bx+80, laneY=by+10;
+  ctx.fillStyle='#2a2a2e'; ctx.fillRect(bx,laneY-16,bw,32);
+  ctx.strokeStyle=r.flash>0?'#8fe36a':'#ece6d6'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(hitX,laneY,15,0,7); ctx.stroke();
+  r.flash=Math.max(0,r.flash-1/60);
+  const pxPerSec=200;
+  for (const n of r.notes){ const x=hitX+(n.t-now)*pxPerSec; if (x<bx-20||x>bx+bw+20) continue;
+    ctx.fillStyle = n.hit===1 ? '#8fe36a' : n.hit===-1 ? '#d6452f' : '#f2c230';
+    ctx.beginPath(); ctx.arc(x,laneY,n.hit?6:10,0,7); ctx.fill(); }
+  const bi=Math.floor((now-r.origin)/BEAT)-4, li=Math.max(0,Math.min(r.lyrics.length-1,Math.floor(bi/4)));
+  ctx.textAlign='center'; ctx.fillStyle='#ece6d6'; ctx.font='bold 15px "Space Mono",monospace';
+  ctx.fillText(bi<0 ? 'Pripraviť… '+(4-Math.max(0,bi+4)) : r.lyrics[li], vw/2, by+62);
+  ctx.fillStyle='#8d8878'; ctx.font='11px "Space Mono",monospace'; ctx.fillText('MEDZERNÍK / BEAT keď je kruh v terči', vw/2, by+96);
+}
+
+// ---------------------------------------------------------------- loop
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if (state.mode==='play'){
+    if (took('pause')){ state.mode='pause'; $('pause').style.display='flex'; beat.stop(); }
+    else update(dt);
+  } else if (state.mode==='pause'){ if (took('pause')){ state.mode='play'; $('pause').style.display='none'; } pressed.clear(); }
+  else if (state.mode==='ending'){ pressed.clear(); }
+  render();
+  requestAnimationFrame(frame);
+}
+$('startBtn').addEventListener('click', ()=>{
+  initAudio(); if (AC && AC.state==='suspended') AC.resume();
+  $('intro').style.display='none'; state.mode='play';
+  for (let i=0;i<20;i++) spawnTraffic(); for (let i=0;i<30;i++) spawnPed();
+  updateObjective();
+  pager('VITAJ V SENCI, 1998. DÁVID ŤA ČAKÁ PRI TELEFÓNNEJ BÚDKE.', 7);
+});
+$('freeBtn').addEventListener('click', ()=>{ $('ending').style.display='none'; state.mode='play'; updateObjective(); });
+cv.addEventListener('pointerdown', ()=>{ if (state.rhythm) rhythmPress(); });
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

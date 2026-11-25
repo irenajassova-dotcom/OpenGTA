@@ -7,6 +7,9 @@
 #include "lua_camera.h"
 #include "lua_screen.h"
 #include "lua_spritecache.h"
+#ifndef LUA_MAP_ONLY
+#include "lua_player.h"
+#endif
 #include "m_exceptions.h"
 
 using namespace Util;
@@ -49,6 +52,8 @@ namespace OpenGTA {
         luaL_openlib(L, "camera",      Camera::methods, 0);
         luaL_openlib(L, "screen",      Screen::methods, 0);
         luaL_openlib(L, "spritecache", SpriteCache::methods, 0);
+        luaL_openlib(L, "player",      Player::methods, 0);
+        luaL_openlib(L, "hud",         Hud::methods, 0);
 #endif
         lua_pushcfunction(L, vm_quit);
         lua_setglobal(L, "quit");

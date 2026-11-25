@@ -47,6 +47,7 @@
 #ifdef WITH_LUA
 #include "lua_addon/lua_vm.h"
 #include "lua_addon/lua_stackguard.h"
+#include "lua_addon/lua_player.h"
 #endif
 #include "gui.h"
 #include "font_cache.h"
@@ -985,6 +986,32 @@ void drawScene(Uint32 ticks) {
   OpenGL::DrawableFont & m_font = OpenGTA::FontCacheHolder::Instance().getFont("F_MTEXT.FON", 1);
   m_font.drawString(city->getCurrentSector()->getFullName());
   glPopMatrix();
+
+#ifdef WITH_LUA
+  {
+    using OpenGTA::Script::Hud;
+    Hud::update(ticks);
+    const float line_y = float(OpenGL::ScreenHolder::Instance().getHeight());
+    if (!Hud::title.empty()) {
+      glPushMatrix();
+      glTranslatef(10, line_y - 30, 0);
+      m_font.drawString(Hud::title);
+      glPopMatrix();
+    }
+    if (!Hud::objective.empty()) {
+      glPushMatrix();
+      glTranslatef(10, line_y - 55, 0);
+      m_font.drawString(Hud::objective);
+      glPopMatrix();
+    }
+    if (!Hud::pagerText.empty()) {
+      glPushMatrix();
+      glTranslatef(10, 40, 0);
+      m_font.drawString(Hud::pagerText);
+      glPopMatrix();
+    }
+  }
+#endif
   
   /*glPushMatrix();
   glTranslatef(5, 50, 0);

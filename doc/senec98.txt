@@ -1,0 +1,43 @@
+SENEC '98 : ZVUK ULICE
+======================
+
+A fan-made mission pack set in Senec (Slovakia) during the birth of Slovak
+hip hop. Tribute only: the mission events are fictional and not affiliated
+with or endorsed by any of the artists mentioned.
+
+Background (real history)
+-------------------------
+* Dávid zo Senca rapped in Slovak from 1989 and is called the forefather
+  ("praotec") of Slovak hip hop. Geto Gang - "Politik" (1993) is one of the
+  first Slovak rap recordings.
+* His compilation project "Zvuk ulice" (Street Sound) gathered young MCs
+  from all over Slovakia in the 1990s.
+* Rytmus first appeared on Zvuk ulice as "Pa3k Metamorfolord". In 2001 he
+  founded Kontrafakt with Ego and DJ Anys. The hit "Dáva mi" and the album
+  E.R.A. (2003-2004) took Slovak rap into the mainstream.
+
+Missions
+--------
+ 1/5 Prvá sloka           buy a blank TDK tape at the market, record a verse
+ 2/5 Zvuk ulice           deliver demo tapes: station, Turecký dom, lake bufet
+ 3/5 Metamorfolord        pick up Pa3k from the train, hold the beat at the session
+ 4/5 Steny na jazerách    tag garages, underpass and pier, lose the police
+ 5/5 Krst kompilácie      fetch the tapes from the pressing plant, perform at the lakes
+
+Two ways to play
+----------------
+1) Browser (no game data needed): open web/senec98/index.html.
+   A self-contained top-down port with a hand-built Senec map (sídlisko,
+   Námestie 1. mája with Turecký dom, the station, Slnečné jazerá, D1),
+   traffic, pedestrians, police, a pager, a synthesized boom-bap car radio
+   and a rhythm mini-game for recording sessions.
+
+2) Native OpenGTA engine (needs the original GTA1 data files and a Lua 5.x
+   build, see BUILD):
+       ./viewer -s scripts/senec98.lua
+   This uses two new Lua bindings added in lua_addon/lua_player.cpp:
+       player.getPos() getCash() addCash(n) getWanted() setWanted(n)
+              addWanted(n) getLives() giveLives(n)
+       hud.setTitle(s) setObjective(s) pager(s [,secs]) clear()
+   The HUD lines are drawn by viewer.cpp. Because the GTA1 maps are not
+   Senec, the waypoints are block offsets from the player's start position.
